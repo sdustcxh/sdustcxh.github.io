@@ -1,0 +1,102 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta name="generator" content="pandoc" />
+  <title></title>
+  <style type="text/css">code{white-space: pre;}</style>
+</head>
+<body>
+<h1 id="当成员变量包含指针的时候">当成员变量包含指针的时候</h1>
+<p>例如:</p>
+<pre><code>#include &lt;cstdio&gt;
+#include &lt;cstdlib&gt;
+#include &lt;cstring&gt;
+
+class A{
+public:
+    char *s = NULL;
+    A(){this-&gt;s = NULL;}
+    A(const char* s){
+        if(this-&gt;s !=NULL){
+            free(this-&gt;s);
+        }
+        this-&gt;s = 
+        (char*)malloc(sizeof(char)*strlen(s)+1);
+        strcpy(this-&gt;s, s);
+    }
+    ~A(){
+    printf(&quot;%s&quot;,&quot;destroying...\n&quot;);
+    free(s);s=NULL;
+    }
+}
+int main(){
+    A a(&quot;Hello&quot;);
+    A b(&quot;world&quot;);
+    a = b;
+    printf(&quot;%s\n&quot; ,a.s);
+    return 0;
+}</code></pre>
+<p>这样的代码是有问题的因为a.s指向了b.s,产生了内存泄漏.要避免这个问题,需要重载赋值运算符.下面是完整的代码:</p>
+<pre><code>#include &lt;cstdio&gt;
+#include &lt;cstdlib&gt;
+#include &lt;cstring&gt;
+#include &lt;iostream&gt;
+
+class A{
+public:
+    char *s = NULL;
+    void operator=(const A rhs);
+    A(){this-&gt;s = NULL;}
+    A(const char* s){
+        if(this-&gt;s !=NULL){
+            free(this-&gt;s);
+        }
+        this-&gt;s = (char*)\
+        malloc(sizeof(char)*strlen(s)+1);
+        strcpy(this-&gt;s, s);
+    }
+    ~A(){
+    printf(&quot;%s&quot;,&quot;destroying...\n&quot;);
+    free(s);
+    s=NULL;
+    }
+};
+
+void A::operator=(const A rhs){
+    printf(&quot;rhs=%s\n&quot;,rhs.s);
+    if(this == &amp;rhs)
+        return;
+    if(this-&gt;s!=NULL){ free(this-&gt;s);}
+
+    if(rhs.s==NULL){ // rhs.s is NULL or &quot;&quot;
+        this-&gt;s = NULL;
+    }
+    else{
+        this-&gt;s =(char*)\
+        malloc(sizeof(char)*strlen(rhs.s)+1);
+        if(strcpy(this-&gt;s, rhs.s)){
+            printf(&quot;%s\n&quot;,this-&gt;s);
+        }
+    }
+}
+A f(void){
+    A a(&quot;st\n&quot;);
+    return a;
+    //after return a, a has been destroyed.
+}
+
+int main(){
+    while(1){
+        A a(&quot;&quot;);
+        A b(&quot;world&quot;);
+        b = a;
+        a = f();
+        printf(&quot;%s&quot;,a.s);
+    }
+    return 0;
+}</code></pre>
+<p>note: 当类里面用到指针的时候要各位小心,防止内存泄漏, 防止出现野指针.</p>
+</body>
+</html>
